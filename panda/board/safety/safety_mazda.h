@@ -25,7 +25,7 @@ const SteeringLimits MAZDA_STEERING_LIMITS = {
   .type = TorqueDriverLimited,
 };
 
-const CanMsg MAZDA_TX_MSGS[] = {{MAZDA_LKAS, 0, 8}, {MAZDA_CRZ_BTNS, 0, 8}, {MAZDA_LKAS2, 0, 8}, {MAZDA_LKAS_HUD, 0, 8}};
+const CanMsg MAZDA_TX_MSGS[] = {{MAZDA_LKAS, 0, 8}, {MAZDA_CRZ_BTNS, 0, 8}, {MAZDA_LKAS2, 1, 8}, {MAZDA_LKAS_HUD, 0, 8}};
 
 AddrCheckStruct mazda_addr_checks[] = {
   {.msg = {{MAZDA_CRZ_CTRL,     0, 8, .expected_timestep = 20000U}, { 0 }, { 0 }}},
@@ -38,7 +38,7 @@ AddrCheckStruct mazda_addr_checks[] = {
 addr_checks mazda_rx_checks = {mazda_addr_checks, MAZDA_ADDR_CHECKS_LEN};
 
 AddrCheckStruct mazda_ti_addr_checks[] = {
-  {.msg = {{TI_STEER_TORQUE,    0, 8, .expected_timestep = 12000U}}},
+  {.msg = {{TI_STEER_TORQUE,    1, 8, .expected_timestep = 22000U}}},
   // TI_STEER_TORQUE expected_timestep should be the same as the tx rate of MAZDA_LKAS2
 };
 #define MAZDA_TI_ADDR_CHECKS_LEN (sizeof(mazda_ti_addr_checks) / sizeof(mazda_ti_addr_checks[0]))
@@ -63,12 +63,7 @@ static int mazda_rx_hook(CANPacket_t *to_push) {
       vehicle_moving = speed > 10; // moving when speed > 0.1 kph
     }
 
-    if (torque_interceptor_detected) {
-      if (addr == TI_STEER_TORQUE) {
-        int torque_driver_new = GET_BYTE(to_push, 0) - 126;
-        update_sample(&torque_driver, torque_driver_new);
-      }
-    }else{
+    if (!torque_interceptor_detected) {
       if (addr == MAZDA_STEER_TORQUE) {
         int torque_driver_new = GET_BYTE(to_push, 0) - 127;
         update_sample(&torque_driver, torque_driver_new);
@@ -91,6 +86,15 @@ static int mazda_rx_hook(CANPacket_t *to_push) {
 
     generic_rx_checks((addr == MAZDA_LKAS));
   }
+  
+  if (valid && (GET_BUS(to_push) == MAZDA_AUX)) {
+    int addr = GET_ADDR(to_push);
+    if (addr == TI_STEER_TORQUE) {
+      int torque_driver_new = GET_BYTE(to_push, 0) - 126;
+      update_sample(&torque_driver, torque_driver_new);
+    }
+  }
+
   return valid;
 }
 
@@ -107,7 +111,6 @@ static int mazda_tx_hook(CANPacket_t *to_send, bool longitudinal_allowed) {
 
   // Check if msg is sent on the main BUS
   if (bus == MAZDA_MAIN) {
-
     // steer cmd checks
     if (addr == MAZDA_LKAS) {
       int desired_torque = (((GET_BYTE(to_send, 0) & 0x0FU) << 8) | GET_BYTE(to_send, 1)) - 2048U;
