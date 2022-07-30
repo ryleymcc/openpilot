@@ -4,6 +4,7 @@ from common.conversions import Conversions as CV
 from selfdrive.car.mazda.values import CAR, LKAS_LIMITS
 from selfdrive.car import STD_CARGO_KG, scale_rot_inertia, scale_tire_stiffness, gen_empty_fingerprint, get_safety_config
 from selfdrive.car.interfaces import CarInterfaceBase
+from selfdrive import global_ti as TI
 
 ButtonType = car.CarState.ButtonEvent.Type
 EventName = car.CarEvent.EventName
@@ -15,10 +16,15 @@ class CarInterface(CarInterfaceBase):
     ret = CarInterfaceBase.get_std_params(candidate, fingerprint)
 
     ret.carName = "mazda"
+
     ret.safetyConfigs = [get_safety_config(car.CarParams.SafetyModel.mazda)]
     ret.radarOffCan = True
 
-    ret.dashcamOnly = candidate not in (CAR.CX5_2022, CAR.CX9_2021)
+    ret.dashcamOnly = False # candidate not in (CAR.CX5_2022, CAR.CX9_2021)
+
+    #ret.enableTorqueInterceptor = 0x24A in fingerprint[0]
+    #if ret.enableTorqueInterceptor:
+    #  print("Recieving torque interceptor signal.")
 
     ret.steerActuatorDelay = 0.1
     ret.steerLimitTimer = 0.8
@@ -61,6 +67,10 @@ class CarInterface(CarInterfaceBase):
 
   # returns a car.CarState
   def _update(self, c):
+    if self.CP.enableTorqueInterceptor and not TI.enabled:
+      TI.enabled = True
+      self.cp = self.CS.get_can_parser(self.CP)
+
     ret = self.CS.update(self.cp, self.cp_cam)
 
     # events
@@ -70,6 +80,9 @@ class CarInterface(CarInterfaceBase):
       events.add(EventName.lkasDisabled)
     elif self.CS.low_speed_alert:
       events.add(EventName.belowSteerSpeed)
+
+    if not self.CS.acc_active_last and not self.CS.ti_lkas_allowed:
+      events.add(EventName.steerTempUnavailable)
 
     ret.events = events.to_msg()
 
