@@ -69,9 +69,10 @@ class CarInterface(CarInterfaceBase):
   def _update(self, c):
     if self.CP.enableTorqueInterceptor and not TI.enabled:
       TI.enabled = True
-      self.cp = self.CS.get_can_parser(self.CP)
+      self.cp_body = self.CS.get_body_can_parser(self.CP)
+      self.can_parsers = [self.cp, self.cp_cam, self.cp_adas, self.cp_body, self.cp_loopback]
 
-    ret = self.CS.update(self.cp, self.cp_cam)
+    ret = self.CS.update(self.cp, self.cp_cam, self.cp_body)
 
     # events
     events = self.create_common_events(ret)
