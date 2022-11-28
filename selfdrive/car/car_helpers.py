@@ -191,6 +191,9 @@ def get_car(logcan, sendcan, num_pandas=1):
   experimental_long = Params().get_bool("ExperimentalLongitudinalEnabled")
 
   CarInterface, CarController, CarState = interfaces[candidate]
+
+  global_ti.saved_CarInterface = CarInterface
+
   CP = CarInterface.get_params(candidate, fingerprints, car_fw, experimental_long)
   CP.carVin = vin
   CP.carFw = car_fw
