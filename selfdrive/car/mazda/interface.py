@@ -32,7 +32,7 @@ class CarInterface(CarInterfaceBase):
 
     CarInterfaceBase.configure_torque_tune(candidate, ret.lateralTuning)
 
-    if candidate in (CAR.CX5, CAR.CX5_2022):
+    if candidate in (CAR.CX3, CAR.CX5, CAR.CX5_2022):
       ret.mass = 3655 * CV.LB_TO_KG + STD_CARGO_KG
       ret.wheelbase = 2.7
       ret.steerRatio = 15.5
