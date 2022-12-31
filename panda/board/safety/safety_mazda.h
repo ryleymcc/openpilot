@@ -9,6 +9,17 @@
 #define MAZDA_ENGINE_DATA   0x202
 #define MAZDA_PEDALS        0x165
 
+// Radar
+
+#define MAZDA_CRZ_INFO      0x21B
+#define MAZDA_RADAR_361     0x361
+#define MAZDA_RADAR_362     0x362
+#define MAZDA_RADAR_363     0x363
+#define MAZDA_RADAR_364     0x364
+#define MAZDA_RADAR_365     0x365
+#define MAZDA_RADAR_366     0x366
+#define MAZDA_RADAR_499     0x499
+
 // CAN bus numbers
 #define MAZDA_MAIN 0
 #define MAZDA_AUX  1
@@ -25,7 +36,10 @@ const SteeringLimits MAZDA_STEERING_LIMITS = {
   .type = TorqueDriverLimited,
 };
 
-const CanMsg MAZDA_TX_MSGS[] = {{MAZDA_LKAS, 0, 8}, {MAZDA_CRZ_BTNS, 0, 8}, {MAZDA_LKAS2, 1, 8}, {MAZDA_LKAS_HUD, 0, 8}};
+const CanMsg MAZDA_TX_MSGS[] = {{MAZDA_LKAS, 0, 8}, {MAZDA_CRZ_BTNS, 0, 8}, {MAZDA_LKAS2, 1, 8}, {MAZDA_LKAS_HUD, 0, 8},
+                                {MAZDA_CRZ_CTRL, 0, 8}, {MAZDA_CRZ_INFO, 0, 8}, {MAZDA_RADAR_361, 0, 8}, {MAZDA_RADAR_362, 0, 8},
+                                {MAZDA_RADAR_363, 0, 8}, {MAZDA_RADAR_364, 0, 8}, {MAZDA_RADAR_365, 0, 8}, {MAZDA_RADAR_366, 0, 8}, 
+                                {MAZDA_RADAR_499, 0, 8}};
 
 AddrCheckStruct mazda_addr_checks[] = {
   {.msg = {{MAZDA_CRZ_CTRL,     0, 8, .expected_timestep = 20000U}, { 0 }, { 0 }}},
@@ -137,11 +151,22 @@ static int mazda_tx_hook(CANPacket_t *to_send, bool longitudinal_allowed) {
 static int mazda_fwd_hook(int bus, CANPacket_t *to_fwd) {
   int bus_fwd = -1;
   int addr = GET_ADDR(to_fwd);
+  bool block = false;
 
   if (bus == MAZDA_MAIN) {
     bus_fwd = MAZDA_CAM;
   } else if (bus == MAZDA_CAM) {
-    bool block = (addr == MAZDA_LKAS) || (addr == MAZDA_LKAS_HUD);
+    block |= (addr == MAZDA_LKAS);
+    block |= (addr == MAZDA_LKAS_HUD);
+    block |= (addr == MAZDA_CRZ_INFO);
+    block |= (addr == MAZDA_CRZ_CTRL);
+    block |= (addr == MAZDA_RADAR_361);
+    block |= (addr == MAZDA_RADAR_362);
+    block |= (addr == MAZDA_RADAR_363);
+    block |= (addr == MAZDA_RADAR_364);
+    block |= (addr == MAZDA_RADAR_365);
+    block |= (addr == MAZDA_RADAR_366);
+
     if (!block) {
       bus_fwd = MAZDA_MAIN;
     }
