@@ -140,19 +140,19 @@ def create_button_cmd(packer, car_fingerprint, counter, button):
 
     return packer.make_can_msg("CRZ_BTNS", 0, values)
   
-def create_radar_command(packer, car_fingerprint, frame, c, CS):
+def create_radar_command(packer, car_fingerprint, frame, CC, CS):
   accel = 0
   ret = []
   
-  if c.enabled: # this is set true in longcontrol.py
-    accel = c.actuators.accel * 1170
+  if CC.longActive: # this is set true in longcontrol.py
+    accel = CC.actuators.accel * 1170
     accel = accel if accel < 1000 else 1000
   else:
     accel = int(CS.cp_cam.vl["CRZ_INFO"]["ACCEL_CMD"])
 
   if car_fingerprint in GEN1:
     values_21B = {
-        "ACC_ACTIVE"        : int(c.enabled),
+        "ACC_ACTIVE"        : int(CC.longActive),
         "ACC_SET_ALLOWED"   : int(bool(int(CS.cp.vl["GEAR"]["GEAR"]) & 4)), # we can set ACC_SET_ALLOWED bit when in drive. Allows crz to be set from 1kmh.
         "CRZ_ENDED"         : 0, # this should keep acc on down to 5km/h on my 2018 M3
         "ACCEL_CMD"         : accel,
@@ -163,10 +163,10 @@ def create_radar_command(packer, car_fingerprint, frame, c, CS):
     }
 
     values_21C = {
-        "CRZ_ACTIVE"       : int(c.enabled),
+        "CRZ_ACTIVE"       : int(CC.longActive),
         "CRZ_AVAILABLE"    : int(CS.cp_cam.vl["CRZ_CTRL"]["CRZ_AVAILABLE"]),
         "DISTANCE_SETTING" : int(CS.cp_cam.vl["CRZ_CTRL"]["DISTANCE_SETTING"]),
-        "ACC_ACTIVE_2"     : int(c.enabled),
+        "ACC_ACTIVE_2"     : int(CC.longActive),
         "DISABLE_TIMER_1"  : 0,
         "DISABLE_TIMER_2"  : 0,
         "NEW_SIGNAL_1"     : int(CS.cp_cam.vl["CRZ_CTRL"]["NEW_SIGNAL_1"]),

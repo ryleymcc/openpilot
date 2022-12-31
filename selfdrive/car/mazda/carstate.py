@@ -126,6 +126,10 @@ class CarState(CarStateBase):
     self.cam_laneinfo = cp_cam.vl["CAM_LANEINFO"]
     ret.steerFaultPermanent = cp_cam.vl["CAM_LKAS"]["ERR_BIT_1"] == 1
 
+    #TODO use copy.copy() instead
+    self.cp_cam = cp_cam
+    self.cp = cp
+    
     return ret
 
   @staticmethod
