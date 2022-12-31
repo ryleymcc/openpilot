@@ -98,8 +98,15 @@ class CarState(CarStateBase):
 
     # TODO: the signal used for available seems to be the adaptive cruise signal, instead of the main on
     #       it should be used for carState.cruiseState.nonAdaptive instead
-    ret.cruiseState.available = cp.vl["CRZ_CTRL"]["CRZ_AVAILABLE"] == 1
-    ret.cruiseState.enabled = cp.vl["CRZ_CTRL"]["CRZ_ACTIVE"] == 1
+    if self.CP.openpilotLongitudinalControl:
+      ret.cruiseState.available = cp_cam.vl["CRZ_CTRL"]["CRZ_AVAILABLE"] == 1
+      # Can't use CRZ_CTRL for enable since we are sending the enable signal to the radar
+      # It would be better to get the enabled signal from another message
+      ret.cruiseState.enabled = cp.vl["CRZ_EVENTS"]["CRUISE_ACTIVE_CAR_MOVING"] == 1
+    else:
+      ret.cruiseState.available = cp.vl["CRZ_CTRL"]["CRZ_AVAILABLE"] == 1
+      ret.cruiseState.enabled = cp.vl["CRZ_CTRL"]["CRZ_ACTIVE"] == 1
+      
     ret.cruiseState.standstill = cp.vl["PEDALS"]["STANDSTILL"] == 1
     ret.cruiseState.speed = cp.vl["CRZ_EVENTS"]["CRZ_SPEED"] * CV.KPH_TO_MS
 
@@ -150,8 +157,7 @@ class CarState(CarStateBase):
         ("LKAS_BLOCK", "STEER_RATE"),
         ("LKAS_TRACK_STATE", "STEER_RATE"),
         ("HANDS_OFF_5_SECONDS", "STEER_RATE"),
-        ("CRZ_ACTIVE", "CRZ_CTRL"),
-        ("CRZ_AVAILABLE", "CRZ_CTRL"),
+        ("CRUISE_ACTIVE_CAR_MOVING", "CRZ_EVENTS"),
         ("CRZ_SPEED", "CRZ_EVENTS"),
         ("STANDSTILL", "PEDALS"),
         ("BRAKE_ON", "PEDALS"),
@@ -171,7 +177,6 @@ class CarState(CarStateBase):
 
       checks += [
         ("ENGINE_DATA", 100),
-        ("CRZ_CTRL", 50),
         ("CRZ_EVENTS", 50),
         ("CRZ_BTNS", 10),
         ("PEDALS", 50),
@@ -181,6 +186,15 @@ class CarState(CarStateBase):
         ("GEAR", 20),
         ("BSM", 10),
       ]
+    if not CP.openpilotLongitudinalControl:
+      signals += [
+        ("CRZ_ACTIVE", "CRZ_CTRL"),
+        ("CRZ_AVAILABLE", "CRZ_CTRL"),
+      ]
+      checks += [
+        ("CRZ_CTRL", 50),
+      ]
+          
     # get real driver torque if we are using a torque interceptor
     if CP.enableTorqueInterceptor:
       signals += [
@@ -233,6 +247,44 @@ class CarState(CarStateBase):
         ("CAM_LANEINFO", 2),
         ("CAM_LKAS", 16),
       ]
+      # gen1 radar
+      if CP.openpilotLongitudinalControl:
+        signals += [
+          ("CRZ_ACTIVE", "CRZ_CTRL", 0),
+          ("CRZ_AVAILABLE", "CRZ_CTRL", 0),
+          ("DISTANCE_SETTING", "CRZ_CTRL", 0),
+          ("ACC_ACTIVE_2", "CRZ_CTRL", 0),
+          ("DISABLE_TIMER_1", "CRZ_CTRL", 0),
+          ("DISABLE_TIMER_2", "CRZ_CTRL", 0),
+          ("NEW_SIGNAL_1", "CRZ_CTRL", 0),
+          ("NEW_SIGNAL_2", "CRZ_CTRL", 0),
+          ("NEW_SIGNAL_3", "CRZ_CTRL", 0),
+          ("NEW_SIGNAL_4", "CRZ_CTRL", 0),
+          ("NEW_SIGNAL_5", "CRZ_CTRL", 0),
+          ("NEW_SIGNAL_6", "CRZ_CTRL", 0),
+        ]
+        signals += [
+          ("STATUS", "CRZ_INFO", 0),
+          ("STATIC_1", "CRZ_INFO", 0),
+          ("ACCEL_CMD", "CRZ_INFO", 0),
+          ("CRZ_ENDED", "CRZ_INFO", 0),
+          ("ACC_SET_ALLOWED", "CRZ_INFO", 0),
+          ("ACC_ACTIVE", "CRZ_INFO", 0),
+          ("MYSTERY_BIT", "CRZ_INFO", 0),
+          ("CTR1", "CRZ_INFO", 0),
+          ("CHECKSUM", "CRZ_INFO", 0),
+        ]
+
+        checks += [("CRZ_CTRL",50), ("CRZ_INFO",50)]
+        
+        for addr in range(361,367):
+          msg = f"RADAR_{addr}"
+          signals += [
+            ("MSGS_1", msg, 0),
+            ("MSGS_2", msg, 0),
+            ("CTR", msg, 0),
+          ]
+          checks += [(msg, 10)]
 
     return CANParser(DBC[CP.carFingerprint]["pt"], signals, checks, 2)
 
