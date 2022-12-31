@@ -139,3 +139,56 @@ def create_button_cmd(packer, car_fingerprint, counter, button):
     }
 
     return packer.make_can_msg("CRZ_BTNS", 0, values)
+  
+def create_radar_command(packer, car_fingerprint, frame, c, CS):
+  accel = 0
+  ret = []
+  
+  if c.enabled: # this is set true in longcontrol.py
+    accel = c.actuators.accel * 1170
+    accel = accel if accel < 1000 else 1000
+  else:
+    accel = int(CS.cp_cam.vl["CRZ_INFO"]["ACCEL_CMD"])
+
+  if car_fingerprint in GEN1:
+    values_21B = {
+        "ACC_ACTIVE"        : int(c.enabled),
+        "ACC_SET_ALLOWED"   : int(bool(int(CS.cp.vl["GEAR"]["GEAR"]) & 4)), # we can set ACC_SET_ALLOWED bit when in drive. Allows crz to be set from 1kmh.
+        "CRZ_ENDED"         : 0, # this should keep acc on down to 5km/h on my 2018 M3
+        "ACCEL_CMD"         : accel,
+        "STATIC_1"          : int(CS.cp_cam.vl["CRZ_INFO"]["STATIC_1"]), #0x7FF,
+        "STATUS"            : int(CS.cp_cam.vl["CRZ_INFO"]["STATUS"]),    #1
+        "MYSTERY_BIT"       : int(CS.cp_cam.vl["CRZ_INFO"]["MYSTERY_BIT"]),
+        "CTR1"              : int(CS.cp_cam.vl["CRZ_INFO"]["CTR1"])
+    }
+
+    values_21C = {
+        "CRZ_ACTIVE"       : int(c.enabled),
+        "CRZ_AVAILABLE"    : int(CS.cp_cam.vl["CRZ_CTRL"]["CRZ_AVAILABLE"]),
+        "DISTANCE_SETTING" : int(CS.cp_cam.vl["CRZ_CTRL"]["DISTANCE_SETTING"]),
+        "ACC_ACTIVE_2"     : int(c.enabled),
+        "DISABLE_TIMER_1"  : 0,
+        "DISABLE_TIMER_2"  : 0,
+        "NEW_SIGNAL_1"     : int(CS.cp_cam.vl["CRZ_CTRL"]["NEW_SIGNAL_1"]),
+        "NEW_SIGNAL_2"     : int(CS.cp_cam.vl["CRZ_CTRL"]["NEW_SIGNAL_2"]),
+        "NEW_SIGNAL_3"     : int(CS.cp_cam.vl["CRZ_CTRL"]["NEW_SIGNAL_3"]),
+        "NEW_SIGNAL_4"     : int(CS.cp_cam.vl["CRZ_CTRL"]["NEW_SIGNAL_4"]),
+        "NEW_SIGNAL_5"     : int(CS.cp_cam.vl["CRZ_CTRL"]["NEW_SIGNAL_5"]),
+        "NEW_SIGNAL_6"     : int(CS.cp_cam.vl["CRZ_CTRL"]["NEW_SIGNAL_6"]),
+    }
+
+    ret.append(packer.make_can_msg("CRZ_INFO", 0, values_21B))
+    ret.append(packer.make_can_msg("CRZ_CTRL", 0, values_21C))
+ 
+    if (frame % 10 == 0):
+      for addr in range(361,367):
+        addr_name = f"RADAR_{addr}"
+        msg = CS.cp_cam.vl[addr_name]
+        values = {
+          "MSGS_1" : int(msg["MSGS_1"]),
+          "MSGS_2" : int(msg["MSGS_2"]),
+          "CTR"    : int(msg["CTR"])
+        } 
+        ret.append(packer.make_can_msg(addr_name, 0, values))
+    
+  return ret
